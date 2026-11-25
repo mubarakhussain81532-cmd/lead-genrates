@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "seed:products": "node --conditions=react-server --import=tsx scripts/seed-products.ts",
     "seed:admin-content": "node --conditions=react-server --import=tsx scripts/seed-admin-content.ts",
     "create:admin": "node --conditions=react-server --import=tsx scripts/create-admin.ts",
