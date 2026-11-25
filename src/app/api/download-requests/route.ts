@@ -9,12 +9,13 @@ import {
   escapeSearchRegex,
   parseAdminListQuery,
 } from "@/lib/admin-query";
-import { readLocalStore } from "@/lib/local-json-store";
+import { createSubmissionId } from "@/lib/submission-json-store";
 import {
-  createSubmissionId,
+  createSubmissionRecord,
+  findProductById,
+  readProductRecords,
   readSubmissionRecords,
-  updateSubmissionRecords,
-} from "@/lib/submission-json-store";
+} from "@/lib/data-store";
 import type { DownloadRequestSubmission } from "@/types/submissions";
 
 export async function POST(request: Request) {
@@ -35,10 +36,8 @@ export async function POST(request: Request) {
     }
 
     const input = parsed.data;
-    const product = (await readLocalStore()).products.find(
-      (item) => item._id === input.productId && item.isActive,
-    );
-    if (!product) {
+    const product = await findProductById(input.productId);
+    if (!product || !product.isActive) {
       return apiError("The selected product is not currently available.", 404);
     }
 
@@ -51,9 +50,7 @@ export async function POST(request: Request) {
       productId: product._id,
       createdAt: new Date(),
     };
-    await updateSubmissionRecords("download-requests", (records) => {
-      records.push(downloadRequest);
-    });
+    await createSubmissionRecord("download-requests", downloadRequest);
 
     let downloadUrl: string | null = null;
     let message =
@@ -103,9 +100,9 @@ export async function GET(request: Request) {
     return query;
   }
   try {
-    const [downloadRequests, store] = await Promise.all([
+    const [downloadRequests, products] = await Promise.all([
       readSubmissionRecords("download-requests"),
-      readLocalStore(),
+      readProductRecords(),
     ]);
     const search = query.search
       ? new RegExp(escapeSearchRegex(query.search), "i")
@@ -135,7 +132,7 @@ export async function GET(request: Request) {
         company: record.company ?? "",
         productId: record.productId,
         productName:
-          store.products.find((product) => product._id === record.productId)
+          products.find((product) => product._id === record.productId)
             ?.name ?? "Deleted product",
         createdAt: record.createdAt.toISOString(),
       })),

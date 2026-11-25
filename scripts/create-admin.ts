@@ -2,11 +2,9 @@ import { loadEnvConfig } from "@next/env";
 import { hashPassword } from "../src/lib/password";
 import { createAdminSchema } from "../src/lib/admin-credentials";
 import { adminRoles } from "../src/types/admin";
-import {
-  createLocalId,
-  DuplicateLocalRecordError,
-  updateLocalStore,
-} from "../src/lib/local-json-store";
+import { createAdminRecord } from "../src/lib/data-store";
+import { createLocalId } from "../src/lib/local-json-store";
+import { DuplicateRecordError } from "../src/lib/duplicate-record";
 
 loadEnvConfig(process.cwd());
 
@@ -87,27 +85,26 @@ async function main() {
   }
 
   const passwordHash = await hashPassword(validated.data.password);
-  await updateLocalStore((store) => {
-    if (store.admins.some((admin) => admin.email === validated.data.email)) {
-      throw new DuplicateLocalRecordError(
-        "An administrator already uses that email address.",
-      );
-    }
-    store.admins.push({
-      _id: createLocalId(),
-      name: validated.data.name,
-      email: validated.data.email,
-      role: validated.data.role,
-      passwordHash,
-      isActive: true,
-      createdAt: new Date(),
-    });
+  await createAdminRecord({
+    _id: createLocalId(),
+    name: validated.data.name,
+    email: validated.data.email,
+    role: validated.data.role,
+    passwordHash,
+    isActive: true,
+    createdAt: new Date(),
   });
   console.info(`Created ${validated.data.role} account for ${validated.data.email}.`);
 }
 
 main()
   .catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : "Admin setup failed.");
+    console.error(
+      error instanceof DuplicateRecordError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : "Admin setup failed.",
+    );
     process.exitCode = 1;
   });

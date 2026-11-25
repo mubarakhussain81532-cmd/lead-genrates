@@ -5,9 +5,10 @@ import { enquiryStatusSchema } from "@/utils/enquiry-schema";
 import { serializeSubmissionEnquiry } from "@/lib/api-serializers";
 import { isLocalId } from "@/lib/local-json-store";
 import {
+  deleteEnquiryRecord,
   readSubmissionRecords,
-  updateSubmissionRecords,
-} from "@/lib/submission-json-store";
+  updateEnquiryStatusRecord,
+} from "@/lib/data-store";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -80,13 +81,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       return apiError("Enquiry not found.", 404);
     }
 
-    const enquiry = await updateSubmissionRecords(collection, (records) => {
-      const item = records.find((record) => record.id === id);
-      if (item) {
-        item.status = parsed.data.status;
-      }
-      return item ?? null;
-    });
+    const enquiry = await updateEnquiryStatusRecord(
+      collection,
+      id,
+      parsed.data.status,
+    );
     if (!enquiry) {
       return apiError("Enquiry not found.", 404);
     }
@@ -119,10 +118,7 @@ export async function DELETE(request: Request, { params }: RouteContext) {
       return apiError("Enquiry not found.", 404);
     }
 
-    const enquiry = await updateSubmissionRecords(collection, (records) => {
-      const index = records.findIndex((item) => item.id === id);
-      return index < 0 ? null : records.splice(index, 1)[0];
-    });
+    const enquiry = await deleteEnquiryRecord(collection, id);
     if (!enquiry) {
       return apiError("Enquiry not found.", 404);
     }

@@ -7,12 +7,12 @@ import {
 import { parseJson } from "@/lib/parse-json";
 import { serviceInputSchema } from "@/utils/admin-schemas";
 import { serializeService } from "@/lib/api-serializers";
+import { createLocalId } from "@/lib/local-json-store";
 import {
-  createLocalId,
-  DuplicateLocalRecordError,
-  readLocalStore,
-  updateLocalStore,
-} from "@/lib/local-json-store";
+  createServiceRecord,
+  readServiceRecords,
+} from "@/lib/data-store";
+import { DuplicateRecordError } from "@/lib/duplicate-record";
 
 export async function GET(request: Request) {
   const unauthorized = await authorizeAdmin(request, ["superadmin", "admin"]);
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     const search = query.search
       ? new RegExp(escapeSearchRegex(query.search), "i")
       : null;
-    const matching = (await readLocalStore()).services
+    const matching = (await readServiceRecords())
       .filter(
         (item) =>
           (active === "all" || item.isActive === (active === "true")) &&
@@ -72,22 +72,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const item = await updateLocalStore((store) => {
-      if (store.services.some((service) => service.slug === parsed.data.slug)) {
-        throw new DuplicateLocalRecordError("Duplicate service slug.");
-      }
-      const record = {
-        _id: createLocalId(),
-        ...parsed.data,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      store.services.push(record);
-      return record;
+    const item = await createServiceRecord({
+      _id: createLocalId(),
+      ...parsed.data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
     return apiSuccess({ item: serializeService(item) }, 201);
   } catch (error) {
-    if (error instanceof DuplicateLocalRecordError) {
+    if (error instanceof DuplicateRecordError) {
       return apiError("A service with that slug already exists.", 409);
     }
     console.error("POST /api/admin/services failed", error);

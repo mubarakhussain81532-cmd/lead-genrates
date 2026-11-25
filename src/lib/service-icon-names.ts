@@ -1,0 +1,18 @@
+export const serviceIconNames = [
+  "Building2",
+  "ChartNoAxesCombined",
+  "FileSpreadsheet",
+  "GraduationCap",
+  "Handshake",
+  "Headset",
+  "HeartPulse",
+  "Hotel",
+  "MailCheck",
+  "Megaphone",
+  "Network",
+  "SearchCheck",
+  "ShieldCheck",
+  "Sparkles",
+  "Target",
+  "Workflow",
+] as const;

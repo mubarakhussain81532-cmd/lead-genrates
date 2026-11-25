@@ -3,11 +3,12 @@ import { authorizeAdmin } from "@/lib/admin-auth";
 import { parseJson } from "@/lib/parse-json";
 import { serviceUpdateSchema } from "@/utils/admin-schemas";
 import { serializeService } from "@/lib/api-serializers";
+import { isLocalId } from "@/lib/local-json-store";
 import {
-  DuplicateLocalRecordError,
-  isLocalId,
-  updateLocalStore,
-} from "@/lib/local-json-store";
+  deactivateServiceRecord,
+  updateServiceRecord,
+} from "@/lib/data-store";
+import { DuplicateRecordError } from "@/lib/duplicate-record";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -26,28 +27,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   }
 
   try {
-    const item = await updateLocalStore((store) => {
-      const service = store.services.find((record) => record._id === id);
-      if (!service) {
-        return null;
-      }
-      if (
-        parsed.data.slug &&
-        store.services.some(
-          (record) => record._id !== id && record.slug === parsed.data.slug,
-        )
-      ) {
-        throw new DuplicateLocalRecordError("Duplicate service slug.");
-      }
-      Object.assign(service, parsed.data, { updatedAt: new Date() });
-      return service;
-    });
+    const item = await updateServiceRecord(id, parsed.data);
     if (!item) {
       return apiError("Service not found.", 404);
     }
     return apiSuccess({ item: serializeService(item) });
   } catch (error) {
-    if (error instanceof DuplicateLocalRecordError) {
+    if (error instanceof DuplicateRecordError) {
       return apiError("A service with that slug already exists.", 409);
     }
     console.error("PATCH /api/admin/services/[id] failed", error);
@@ -66,14 +52,7 @@ export async function DELETE(request: Request, { params }: RouteContext) {
   }
 
   try {
-    const item = await updateLocalStore((store) => {
-      const service = store.services.find((record) => record._id === id);
-      if (service) {
-        service.isActive = false;
-        service.updatedAt = new Date();
-      }
-      return service ?? null;
-    });
+    const item = await deactivateServiceRecord(id);
     if (!item) {
       return apiError("Service not found.", 404);
     }

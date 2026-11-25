@@ -8,11 +8,14 @@ import {
 import { productUpdateSchema } from "@/utils/product-schema";
 import { serializePublicProduct } from "@/lib/api-serializers";
 import {
-  DuplicateLocalRecordError,
   isLocalId,
-  readLocalStore,
-  updateLocalStore,
 } from "@/lib/local-json-store";
+import {
+  deactivateProductRecord,
+  findProductById,
+  updateProductRecord,
+} from "@/lib/data-store";
+import { DuplicateRecordError } from "@/lib/duplicate-record";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -49,11 +52,8 @@ export async function GET(request: Request, { params }: RouteContext) {
       return limited;
     }
 
-    const store = await readLocalStore();
-    const product = store.products.find(
-      (item) => item._id === id && item.isActive,
-    );
-    if (!product) {
+    const product = await findProductById(id);
+    if (!product || !product.isActive) {
       return apiError("Product not found.", 404);
     }
 
@@ -84,29 +84,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       await assertSampleExists(parsed.data.sampleFile);
     }
 
-    const product = await updateLocalStore((store) => {
-      const item = store.products.find((record) => record._id === id);
-      if (!item) {
-        return null;
-      }
-      if (
-        parsed.data.name &&
-        store.products.some(
-          (record) => record._id !== id && record.name === parsed.data.name,
-        )
-      ) {
-        throw new DuplicateLocalRecordError("Duplicate product name.");
-      }
-      Object.assign(item, parsed.data);
-      return item;
-    });
+    const product = await updateProductRecord(id, parsed.data);
     if (!product) {
       return apiError("Product not found.", 404);
     }
 
     return apiSuccess({ item: await serializePublicProduct(product) });
   } catch (error) {
-    if (error instanceof DuplicateLocalRecordError) {
+    if (error instanceof DuplicateRecordError) {
       return apiError("A product with that name already exists.", 409);
     }
 
@@ -123,13 +108,7 @@ export async function DELETE(request: Request, { params }: RouteContext) {
   }
 
   try {
-    const product = await updateLocalStore((store) => {
-      const item = store.products.find((record) => record._id === id);
-      if (item) {
-        item.isActive = false;
-      }
-      return item ?? null;
-    });
+    const product = await deactivateProductRecord(id);
     if (!product) {
       return apiError("Product not found.", 404);
     }

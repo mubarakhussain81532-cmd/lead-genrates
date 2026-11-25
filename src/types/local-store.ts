@@ -1,7 +1,7 @@
 import type { SiteContentData } from "@/lib/default-site-content";
 import type { AdminRole } from "@/types/admin";
 import type { enquiryStatuses } from "@/utils/enquiry-schema";
-import type { serviceIconNames } from "@/lib/service-icons";
+import type { serviceIconNames } from "@/lib/service-icon-names";
 
 export type EnquiryStatus = (typeof enquiryStatuses)[number];
 export type ServiceIconName = (typeof serviceIconNames)[number];

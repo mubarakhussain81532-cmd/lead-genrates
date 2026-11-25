@@ -1,5 +1,12 @@
 import type { NextConfig } from "next";
 
+if (
+  process.env.VERCEL_ENV === "production" &&
+  !process.env.MONGODB_URI?.trim()
+) {
+  throw new Error("MONGODB_URI must be configured for Vercel production.");
+}
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,

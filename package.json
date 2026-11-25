@@ -13,6 +13,7 @@
     "create:admin": "node --conditions=react-server --import=tsx scripts/create-admin.ts",
     "test:security": "node --conditions=react-server --import=tsx scripts/test-admin-password.ts",
     "test:json": "node --conditions=react-server --import=tsx scripts/test-json-store.ts",
+    "test:database": "node --conditions=react-server --import=tsx scripts/test-database.ts",
     "test:email": "node --conditions=react-server --import=tsx scripts/test-email.ts"
   },
   "dependencies": {
@@ -22,6 +23,7 @@
     "axios": "^1.21.1",
     "framer-motion": "^14.14.0",
     "lucide-react": "^1.79.0",
+    "mongoose": "^8.24.11",
     "next": "16.4.6",
     "nodemailer": "^10.6.1",
     "react": "19.3.0",
@@ -44,6 +46,6 @@
     "typescript": "^5"
   },
   "engines": {
-    "node": ">=20.9.0"
+    "node": ">=22.0.0 <25"
   }
 }

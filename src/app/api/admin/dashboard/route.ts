@@ -1,7 +1,9 @@
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { authorizeAdmin } from "@/lib/admin-auth";
-import { readLocalStore } from "@/lib/local-json-store";
-import { readSubmissionRecords } from "@/lib/submission-json-store";
+import {
+  readProductRecords,
+  readSubmissionRecords,
+} from "@/lib/data-store";
 
 export async function GET(request: Request) {
   const unauthorized = await authorizeAdmin(request);
@@ -10,8 +12,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [store, enquiries, contacts, downloads, newsletter] = await Promise.all([
-      readLocalStore(),
+    const [products, enquiries, contacts, downloads, newsletter] = await Promise.all([
+      readProductRecords(),
       readSubmissionRecords("enquiries"),
       readSubmissionRecords("contact"),
       readSubmissionRecords("download-requests"),
@@ -72,7 +74,7 @@ export async function GET(request: Request) {
         name: item.name,
         email: item.email,
         detail:
-          store.products.find((product) => product._id === item.productId)
+          products.find((product) => product._id === item.productId)
             ?.name ?? "Deleted product",
         createdAt: item.createdAt,
       })),
@@ -99,7 +101,7 @@ export async function GET(request: Request) {
         contactedEnquiries: allEnquiries.filter((item) => item.status === "in_progress").length,
         convertedEnquiries: allEnquiries.filter((item) => item.status === "converted").length,
         contactSubmissions: contacts.length,
-        totalProducts: store.products.filter((item) => item.isActive).length,
+        totalProducts: products.filter((item) => item.isActive).length,
         totalDownloads: downloads.length,
         newsletterSubscriptions: newsletter.length,
       },

@@ -5,10 +5,8 @@ import { enforceRateLimit } from "@/lib/enforce-rate-limit";
 import { getSmtpEnv } from "@/lib/env";
 import { sendEnquiryNotification } from "@/lib/enquiry-email";
 import { parseJson } from "@/lib/parse-json";
-import {
-  createSubmissionId,
-  updateSubmissionRecords,
-} from "@/lib/submission-json-store";
+import { createSubmissionRecord } from "@/lib/data-store";
+import { createSubmissionId } from "@/lib/submission-json-store";
 import type { EnquirySubmission } from "@/types/submissions";
 import { enquirySchema } from "@/utils/enquiry-schema";
 import type { SubmissionCollectionName } from "@/types/submissions";
@@ -44,9 +42,7 @@ export async function submitPublicEnquiry(
       status: "new",
       createdAt: new Date(),
     };
-    await updateSubmissionRecords(collection, (records) => {
-      records.push(enquiry);
-    });
+    await createSubmissionRecord(collection, enquiry);
 
     let emailNotificationSent = false;
     try {

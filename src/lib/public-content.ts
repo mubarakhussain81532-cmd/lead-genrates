@@ -5,7 +5,7 @@ import { defaultSiteContent } from "@/lib/default-site-content";
 import { getServiceIcon } from "@/lib/service-icons";
 import { services, type ServiceItem } from "@/lib/marketing-content";
 import type { SiteContentData } from "@/lib/default-site-content";
-import { readLocalStore } from "@/lib/local-json-store";
+import { readServiceRecords, readSiteContentRecord } from "@/lib/data-store";
 
 function logPublicDataFallback(resource: string, error: unknown) {
   const detail =
@@ -19,7 +19,7 @@ function logPublicDataFallback(resource: string, error: unknown) {
 export async function getPublicSiteContent(): Promise<SiteContentData> {
   await connection();
   try {
-    const { siteContent: item } = await readLocalStore();
+    const item = await readSiteContentRecord();
     return {
       contact: {
         phone: item?.contact?.phone ?? defaultSiteContent.contact.phone,
@@ -44,6 +44,9 @@ export async function getPublicSiteContent(): Promise<SiteContentData> {
         })) ?? defaultSiteContent.testimonials,
     };
   } catch (error) {
+    if (process.env.NODE_ENV === "production") {
+      throw error;
+    }
     logPublicDataFallback("Public site content", error);
     return defaultSiteContent;
   }
@@ -52,7 +55,7 @@ export async function getPublicSiteContent(): Promise<SiteContentData> {
 export async function getPublicServices(): Promise<ServiceItem[]> {
   await connection();
   try {
-    const { services: allServices } = await readLocalStore();
+    const allServices = await readServiceRecords();
     const items = allServices
       .filter((item) => item.isActive)
       .sort(
@@ -73,6 +76,9 @@ export async function getPublicServices(): Promise<ServiceItem[]> {
       return [];
     }
   } catch (error) {
+    if (process.env.NODE_ENV === "production") {
+      throw error;
+    }
     logPublicDataFallback("Public services", error);
   }
 

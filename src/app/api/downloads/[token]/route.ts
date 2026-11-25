@@ -2,8 +2,7 @@ import { apiError } from "@/lib/api-response";
 import { verifyDownloadToken } from "@/lib/download-token";
 import { enforceRateLimit } from "@/lib/enforce-rate-limit";
 import { createSampleDownloadUrl } from "@/lib/object-storage";
-import { readLocalStore } from "@/lib/local-json-store";
-import { readSubmissionRecords } from "@/lib/submission-json-store";
+import { findProductById, readSubmissionRecords } from "@/lib/data-store";
 
 type RouteContext = {
   params: Promise<{ token: string }>;
@@ -40,9 +39,9 @@ export async function GET(request: Request, { params }: RouteContext) {
       return apiError("This download link is invalid or has expired.", 401);
     }
 
-    const [downloadRequests, store] = await Promise.all([
+    const [downloadRequests, product] = await Promise.all([
       readSubmissionRecords("download-requests"),
-      readLocalStore(),
+      findProductById(tokenPayload.productId),
     ]);
     const downloadRequest = downloadRequests.find(
       (item) => item.id === tokenPayload.requestId,
@@ -54,10 +53,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       return apiError("This download link is invalid or has expired.", 401);
     }
 
-    const product = store.products.find(
-      (item) => item._id === tokenPayload.productId && item.isActive,
-    );
-    if (!product?.sampleFile) {
+    if (!product?.isActive || !product.sampleFile) {
       return apiError("The sample file is no longer available.", 404);
     }
 

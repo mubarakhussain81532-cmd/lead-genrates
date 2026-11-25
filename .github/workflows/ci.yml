@@ -1,4 +1,4 @@
-cname: Quality checks
+name: Quality checks
 
 on:
   push:
@@ -13,8 +13,6 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    env:
-      SITE_URL: https://example.invalid
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -33,6 +31,8 @@ jobs:
         run: npm run test:security
       - name: Test local JSON storage
         run: npm run test:json
+      - name: Test database configuration and indexes
+        run: npm run test:database
       - name: Test SMTP notification
         run: npm run test:email
       - name: Audit production dependencies

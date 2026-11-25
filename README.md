@@ -7,44 +7,50 @@ website built with Next.js, TypeScript, Tailwind CSS, and React.
 
 - `src/app/` contains marketing pages and App Router API handlers.
 - `src/components/` contains reusable marketing, form, and admin UI.
-- `src/lib/` contains server-only JSON storage, authentication, rate limiting,
-  email, and private object-storage helpers.
+- `src/lib/` contains server-only MongoDB/JSON storage, authentication, rate
+  limiting, email, and private object-storage helpers.
+- `src/models/` contains the Mongoose models and indexes used by production.
 - `src/types/local-store.ts` defines the persisted record types.
 - `src/utils/` contains Zod validation schemas and shared API contracts.
 - `public/` contains static artwork. Sample files remain in private S3-compatible
   storage and are not placed in `public/`.
 - `scripts/` contains local admin setup, seed utilities, and tests.
 
-Form submissions are stored in separate files under `data/`: `contact.json`,
-`enquiries.json`, `download-requests.json`, and `newsletter.json`. They are
-created on first API access. Writes are serialized within the local Node process
-and saved through atomic file replacement; malformed files are reported without
+Production uses MongoDB through Mongoose. Contact submissions, enquiries,
+download requests, newsletter subscriptions, products, services, admin users,
+sessions, rate limits, and site content are stored in separate MongoDB
+collections with unique, query, and expiry indexes.
+
+Local development without `MONGODB_URI` uses JSON files under `data/` and
+`.local-data/`. Writes are serialized within the local Node process and saved
+through atomic file replacement; malformed files are reported without
 overwriting their contents. Existing enquiry and download-request records are
 copied from the legacy store on first use.
 
-Products, services, site content, admin credentials and sessions, and
-rate-limit counters remain in `.local-data/store.json`. Both storage locations
-are ignored by Git.
+In local development, products, services, site content, admin credentials and
+sessions, and rate-limit counters remain in `.local-data/store.json`. Both
+storage locations are ignored by Git.
 
 Admin passwords use salted scrypt hashes. Session cookies contain opaque tokens;
 only SHA-256 token hashes are persisted. Role checks and same-origin checks
-remain enforced by the API.
+remain enforced by the API. MongoDB admin email addresses, product names,
+service slugs, and newsletter addresses are unique; expired sessions and rate
+limit buckets are removed by MongoDB TTL indexes.
 
 ## Important storage limitation
 
-**JSON storage is for local development only. Do not deploy this configuration
-to Vercel or use it for production/customer data.** Production mode deliberately
-rejects local JSON storage. A serverless filesystem is not durable or shared
-between instances, and the local store is not a production database.
+**JSON storage is for local development only.** Production mode uses MongoDB
+and rejects local JSON storage. A serverless filesystem is not durable or
+shared between instances, and the local store is not a production database.
 
 The JSON files are plaintext and may contain personal customer information and
 password hashes. Restrict access to your computer, do not copy them into source
-control, and do not put production data in them. Data previously stored in
-MongoDB is not imported; the local JSON stores start empty.
+control, and do not put production data in them. Local JSON data is not
+automatically uploaded to MongoDB.
 
 ## Run locally
 
-Requirements: Node.js 20.9 or later and npm.
+Requirements: Node.js 22–24 and npm.
 
 ```powershell
 npm install
@@ -52,15 +58,16 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Create an admin account
-from another terminal:
+Open [http://localhost:3000](http://localhost:3000). Without `MONGODB_URI`,
+create a local admin account from another terminal:
 
 ```powershell
 npm run create:admin -- admin@example.com "Admin Name" superadmin
 ```
 
 Enter and confirm a 12–128 character password at the hidden prompts. Sign in at
-`/admin/login`. The account is saved in `.local-data/store.json`.
+`/admin/login`. The account is saved in `.local-data/store.json`. If
+`MONGODB_URI` is set, admin setup and seed scripts target that database instead.
 
 Seed the default products, services, FAQs, testimonials, and contact details:
 
@@ -78,9 +85,9 @@ up instead of presenting a fake download link. Actual sample uploads and
 downloads still require private S3-compatible storage credentials. Never use
 `NEXT_PUBLIC_*` variables for secrets.
 
-If you previously configured MongoDB, its environment variables are no longer
-read by this application. Remove old database credentials from local env files;
-rotate any credentials that were shared outside your machine.
+Set `MONGODB_URI` in an ignored `.env.local` file to use MongoDB during local
+development. Never commit the URI or expose it through a `NEXT_PUBLIC_*`
+variable.
 
 ## API overview
 
@@ -116,6 +123,7 @@ npm run typecheck
 npm run lint
 npm run test:security
 npm run test:json
+npm run test:database
 npm run test:email
 npm run build
 ```
@@ -127,19 +135,28 @@ external email.
 
 ## Deployment
 
-This JSON-backed configuration is not production-ready and must not be deployed
-to Vercel. Before deployment, replace the local file store with a durable,
-shared database or storage service and run the production API, authorization,
-backup, and concurrency tests against that implementation.
+For Vercel production, configure `MONGODB_URI`, `SITE_URL`, and a strong
+`DOWNLOAD_TOKEN_SECRET` in Project Settings → Environment Variables. `SITE_URL`
+must be the HTTPS origin of the production site. If `SITE_URL` is omitted, the
+app can use Vercel's system-provided production domain when system environment
+variables are enabled. Vercel production builds fail early when MongoDB is not
+configured. Keep SMTP and S3 credentials unset until those services are
+configured; enquiry submissions are still saved in MongoDB when SMTP is
+unavailable, and private file upload/download requires S3-compatible storage.
+
+Seed initial products, services, and public content with the seed scripts after
+setting the intended `MONGODB_URI`. Create the first production administrator
+with `npm run create:admin` in an interactive terminal. Local JSON data is not
+automatically migrated; back up and review any data before importing it.
 
 ## Data flow
 
 ```text
 Browser
   ├─ Next.js pages and admin dashboard
-  ├─ Axios → route handlers → Zod validation / local rate limits
-  │    ├─ contact / enquiry / sample / newsletter → development-only data/*.json
-  │    └─ products / admin / content / rate limits → .local-data/store.json
+  ├─ Axios → route handlers → Zod validation / shared rate limits
+  │    ├─ production → MongoDB Atlas via Mongoose
+  │    └─ local development without MONGODB_URI → ignored JSON files
   ├─ SMTP TLS → enquiry notification mailbox (optional)
   └─ signed URLs → private S3-compatible storage for product files
 ```

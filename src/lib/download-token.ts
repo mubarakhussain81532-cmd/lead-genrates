@@ -31,6 +31,10 @@ export function createDownloadToken(
 export function verifyDownloadToken(
   token: string,
 ): DownloadTokenPayload | null {
+  if (token.length > 1024) {
+    return null;
+  }
+
   const [encodedPayload, providedSignature, extra] = token.split(".");
   if (!encodedPayload || !providedSignature || extra) {
     return null;

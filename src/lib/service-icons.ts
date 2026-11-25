@@ -17,25 +17,9 @@ import {
   Target,
   Workflow,
 } from "lucide-react";
+import { serviceIconNames } from "@/lib/service-icon-names";
 
-export const serviceIconNames = [
-  "Building2",
-  "ChartNoAxesCombined",
-  "FileSpreadsheet",
-  "GraduationCap",
-  "Handshake",
-  "Headset",
-  "HeartPulse",
-  "Hotel",
-  "MailCheck",
-  "Megaphone",
-  "Network",
-  "SearchCheck",
-  "ShieldCheck",
-  "Sparkles",
-  "Target",
-  "Workflow",
-] as const;
+export { serviceIconNames } from "@/lib/service-icon-names";
 
 const serviceIcons: Record<(typeof serviceIconNames)[number], LucideIcon> = {
   Building2,

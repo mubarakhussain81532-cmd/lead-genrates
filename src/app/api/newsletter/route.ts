@@ -1,10 +1,8 @@
 import { apiError, apiSuccess } from "@/lib/api-response";
 import { enforceRateLimit } from "@/lib/enforce-rate-limit";
 import { parseJson } from "@/lib/parse-json";
-import {
-  createSubmissionId,
-  updateSubmissionRecords,
-} from "@/lib/submission-json-store";
+import { createSubmissionId } from "@/lib/submission-json-store";
+import { subscribeNewsletter } from "@/lib/data-store";
 import { newsletterSchema } from "@/utils/newsletter-schema";
 
 export async function POST(request: Request) {
@@ -25,14 +23,10 @@ export async function POST(request: Request) {
     }
 
     const email = parsed.data.email.toLowerCase();
-    await updateSubmissionRecords("newsletter", (records) => {
-      if (!records.some((record) => record.email.toLowerCase() === email)) {
-        records.push({
-          id: createSubmissionId(),
-          email,
-          createdAt: new Date(),
-        });
-      }
+    await subscribeNewsletter({
+      id: createSubmissionId(),
+      email,
+      createdAt: new Date(),
     });
 
     return apiSuccess(

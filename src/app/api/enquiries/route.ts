@@ -9,9 +9,7 @@ import {
   escapeSearchRegex,
   parseAdminListQuery,
 } from "@/lib/admin-query";
-import {
-  readSubmissionRecords,
-} from "@/lib/submission-json-store";
+import { readSubmissionRecords } from "@/lib/data-store";
 
 export async function POST(request: Request) {
   return submitPublicEnquiry(request, "enquiries");

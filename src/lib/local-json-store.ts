@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { LocalStore } from "@/types/local-store";
+import { DuplicateRecordError } from "@/lib/duplicate-record";
 
 const storeDirectory = join(process.cwd(), ".local-data");
 const storePath = join(storeDirectory, "store.json");
@@ -131,7 +132,7 @@ export function isLocalId(value: string): boolean {
   return /^[a-f\d]{24}$/i.test(value);
 }
 
-export class DuplicateLocalRecordError extends Error {
+export class DuplicateLocalRecordError extends DuplicateRecordError {
   constructor(message: string) {
     super(message);
     this.name = "DuplicateLocalRecordError";

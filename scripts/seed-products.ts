@@ -1,17 +1,20 @@
 import { loadEnvConfig } from "@next/env";
 import { databaseProducts } from "@/lib/marketing-content";
-import { createLocalId, updateLocalStore } from "@/lib/local-json-store";
+import { createProductRecord, readProductRecords } from "@/lib/data-store";
+import { createLocalId } from "@/lib/local-json-store";
+import { DuplicateRecordError } from "@/lib/duplicate-record";
 
 loadEnvConfig(process.cwd());
 
 async function seedProducts() {
-  const inserted = await updateLocalStore((store) => {
-    let count = 0;
-    for (const product of databaseProducts) {
-      if (store.products.some((item) => item.name === product.title)) {
-        continue;
-      }
-      store.products.push({
+  const existing = await readProductRecords();
+  let inserted = 0;
+  for (const product of databaseProducts) {
+    if (existing.some((item) => item.name === product.title)) {
+      continue;
+    }
+    try {
+      await createProductRecord({
         _id: createLocalId(),
         name: product.title,
         description: product.description,
@@ -21,10 +24,13 @@ async function seedProducts() {
         isActive: true,
         createdAt: new Date(),
       });
-      count += 1;
+      inserted += 1;
+    } catch (error) {
+      if (!(error instanceof DuplicateRecordError)) {
+        throw error;
+      }
     }
-    return count;
-  });
+  }
   console.info(`Product seed complete: ${inserted} inserted.`);
 }
 

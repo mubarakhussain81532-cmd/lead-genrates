@@ -119,6 +119,14 @@ async function main() {
         makeEnquiryRequest("http://localhost/api/contact", { name: "Invalid" }),
       );
       assert.equal(invalidContact.status, 400);
+      const invalidContentType = await postContact(
+        new Request("http://localhost/api/contact", {
+          method: "POST",
+          headers: { "content-type": "application/jsonp" },
+          body: JSON.stringify(validEnquiry),
+        }),
+      );
+      assert.equal(invalidContentType.status, 415);
       assert.equal((await readSubmissionRecords("contact")).length, 0);
 
       const enquiryResponse = await postEnquiry(
@@ -223,25 +231,50 @@ async function main() {
         401,
       );
 
+      const { adminSessionCookieName, createAdminSession } = await import(
+        "../src/lib/admin-session"
+      );
+      const { hashPassword } = await import("../src/lib/password");
+      const { POST: postAdminLogin } = await import(
+        "../src/app/api/admin/login/route"
+      );
       const adminId = createLocalId();
+      const adminPassword = `Test-${createLocalId()}-Password`;
+      const passwordHash = await hashPassword(adminPassword);
       await updateLocalStore((store) => {
         store.admins.push({
           _id: adminId,
           name: "Test Admin",
           email: "test-admin@example.invalid",
-          passwordHash: "not-used-by-session-test",
+          passwordHash,
           role: "superadmin",
           isActive: true,
           createdAt: new Date(),
         });
       });
-      const { adminSessionCookieName, createAdminSession } = await import(
-        "../src/lib/admin-session"
-      );
       const { token } = await createAdminSession(adminId);
       const cookie = `${adminSessionCookieName()}=${token}`;
       const authenticatedGet = (url: string) =>
         new Request(url, { headers: { cookie } });
+
+      const loginResponse = await postAdminLogin(
+        new Request("http://localhost/api/admin/login", {
+          method: "POST",
+          headers: {
+            origin: "http://localhost",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            email: "test-admin@example.invalid",
+            password: adminPassword,
+          }),
+        }),
+      );
+      assert.equal(loginResponse.status, 200);
+      assert.match(
+        loginResponse.headers.get("set-cookie") ?? "",
+        /HttpOnly; SameSite=Strict/,
+      );
 
       const enquiriesResponse = await getEnquiries(
         authenticatedGet("http://localhost/api/enquiries"),
@@ -366,8 +399,8 @@ async function main() {
     await rm(testDirectory, {
       recursive: true,
       force: true,
-      maxRetries: 40,
-      retryDelay: 500,
+      maxRetries: 10,
+      retryDelay: 250,
     });
   }
 }

@@ -9,7 +9,7 @@ import { enforceRateLimit } from "@/lib/enforce-rate-limit";
 import { parseJson } from "@/lib/parse-json";
 import { verifyPasswordOrDummy } from "@/lib/password";
 import { adminLoginSchema } from "@/utils/admin-schemas";
-import { readLocalStore } from "@/lib/local-json-store";
+import { findAdminByEmail } from "@/lib/data-store";
 
 export async function POST(request: Request) {
   const invalidOrigin = validateSameOrigin(request);
@@ -33,10 +33,8 @@ export async function POST(request: Request) {
       return parsed.response;
     }
 
-    const admin = (await readLocalStore()).admins.find(
-      (item) =>
-        item.email === parsed.data.email.toLowerCase() && item.isActive,
-    );
+    const foundAdmin = await findAdminByEmail(parsed.data.email.toLowerCase());
+    const admin = foundAdmin?.isActive ? foundAdmin : null;
     const validPassword = await verifyPasswordOrDummy(
       parsed.data.password,
       admin?.passwordHash,

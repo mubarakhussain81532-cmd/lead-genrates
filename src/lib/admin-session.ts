@@ -2,11 +2,12 @@ import "server-only";
 
 import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
+import { createLocalId } from "@/lib/local-json-store";
 import {
-  createLocalId,
-  readLocalStore,
-  updateLocalStore,
-} from "@/lib/local-json-store";
+  createAdminSessionRecord,
+  findAdminBySessionTokenHash,
+  revokeAdminSessionByTokenHash,
+} from "@/lib/data-store";
 import type { AdminIdentity } from "@/types/admin";
 import type { AdminRecord } from "@/types/local-store";
 
@@ -49,35 +50,24 @@ export async function createAdminSession(
   adminId: string,
 ): Promise<{ token: string; identity: AdminIdentity }> {
   const token = randomBytes(32).toString("base64url");
-  const identity = await updateLocalStore((store) => {
-    const admin = store.admins.find(
-      (item) => item._id === adminId && item.isActive,
-    );
-    if (!admin) {
-      throw new Error("Cannot create a session for an inactive administrator.");
-    }
-
-    store.adminSessions.push({
-      _id: createLocalId(),
-      adminId: admin._id,
-      tokenHash: sessionTokenHash(token),
-      expiresAt: new Date(Date.now() + sessionDurationSeconds * 1000),
-      createdAt: new Date(),
-    });
-    return toIdentity(admin);
+  const admin = await createAdminSessionRecord({
+    _id: createLocalId(),
+    adminId,
+    tokenHash: sessionTokenHash(token),
+    expiresAt: new Date(Date.now() + sessionDurationSeconds * 1000),
+    createdAt: new Date(),
   });
-  return { token, identity };
+  if (!admin) {
+    throw new Error("Cannot create a session for an inactive administrator.");
+  }
+  return { token, identity: toIdentity(admin) };
 }
 
 export async function revokeAdminSession(token: string): Promise<void> {
   if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
     return;
   }
-  await updateLocalStore((store) => {
-    store.adminSessions = store.adminSessions.filter(
-      (item) => item.tokenHash !== sessionTokenHash(token),
-    );
-  });
+  await revokeAdminSessionByTokenHash(sessionTokenHash(token));
 }
 
 export async function getAdminIdentity(
@@ -87,29 +77,14 @@ export async function getAdminIdentity(
     return null;
   }
 
-  const store = await readLocalStore();
-  const session = store.adminSessions.find(
-    (item) =>
-      item.tokenHash === sessionTokenHash(token) &&
-      item.expiresAt > new Date(),
+  const session = await findAdminBySessionTokenHash(
+    sessionTokenHash(token),
+    new Date(),
   );
   if (!session) {
     return null;
   }
-
-  const admin = store.admins.find(
-    (item) => item._id === session.adminId && item.isActive,
-  );
-  if (!admin) {
-    await updateLocalStore((current) => {
-      current.adminSessions = current.adminSessions.filter(
-        (item) => item._id !== session._id,
-      );
-    });
-    return null;
-  }
-
-  return toIdentity(admin);
+  return toIdentity(session.admin);
 }
 
 export function getAdminSessionToken(request: Request): string | undefined {

@@ -8,11 +8,11 @@ import {
 import { productInputSchema } from "@/utils/product-schema";
 import { serializePublicProduct } from "@/lib/api-serializers";
 import {
-  createLocalId,
-  DuplicateLocalRecordError,
-  readLocalStore,
-  updateLocalStore,
-} from "@/lib/local-json-store";
+  createProductRecord,
+  readProductRecords,
+} from "@/lib/data-store";
+import { createLocalId } from "@/lib/local-json-store";
+import { DuplicateRecordError } from "@/lib/duplicate-record";
 
 export async function GET(request: Request) {
   try {
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
       return limited;
     }
 
-    const { products: records } = await readLocalStore();
+    const records = await readProductRecords();
     const products = records
       .filter((product) => product.isActive)
       .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
@@ -59,22 +59,15 @@ export async function POST(request: Request) {
       await assertSampleExists(parsed.data.sampleFile);
     }
 
-    const product = await updateLocalStore((store) => {
-      if (store.products.some((item) => item.name === parsed.data.name)) {
-        throw new DuplicateLocalRecordError("Duplicate product name.");
-      }
-      const item = {
-        _id: createLocalId(),
-        ...parsed.data,
-        sampleFile: parsed.data.sampleFile ?? null,
-        createdAt: new Date(),
-      };
-      store.products.push(item);
-      return item;
+    const product = await createProductRecord({
+      _id: createLocalId(),
+      ...parsed.data,
+      sampleFile: parsed.data.sampleFile ?? null,
+      createdAt: new Date(),
     });
     return apiSuccess({ item: await serializePublicProduct(product) }, 201);
   } catch (error) {
-    if (error instanceof DuplicateLocalRecordError) {
+    if (error instanceof DuplicateRecordError) {
       return apiError("A product with that name already exists.", 409);
     }
 

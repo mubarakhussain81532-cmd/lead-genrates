@@ -5,7 +5,7 @@ import {
   parseAdminListQuery,
 } from "@/lib/admin-query";
 import { serializeAdminProduct } from "@/lib/api-serializers";
-import { readLocalStore } from "@/lib/local-json-store";
+import { readProductRecords } from "@/lib/data-store";
 
 export async function GET(request: Request) {
   const unauthorized = await authorizeAdmin(request, ["superadmin", "admin"]);
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     const search = query.search
       ? new RegExp(escapeSearchRegex(query.search), "i")
       : null;
-    const matching = (await readLocalStore()).products
+    const matching = (await readProductRecords())
       .filter((product) => {
         if (active !== "all" && product.isActive !== (active === "true")) {
           return false;

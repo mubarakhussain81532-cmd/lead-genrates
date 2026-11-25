@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { adminRoles } from "@/types/admin";
-import { serviceIconNames } from "@/lib/service-icons";
+import { serviceIconNames } from "@/lib/service-icon-names";
 
 export const adminLoginSchema = z
   .object({

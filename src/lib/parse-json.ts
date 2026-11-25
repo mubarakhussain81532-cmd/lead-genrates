@@ -11,7 +11,12 @@ export async function parseJson<TSchema extends z.ZodType>(
   request: Request,
   schema: TSchema,
 ): Promise<ParseJsonResult<z.output<TSchema>>> {
-  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+  const mediaType = request.headers
+    .get("content-type")
+    ?.split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+  if (mediaType !== "application/json") {
     return {
       ok: false,
       response: apiError("Content-Type must be application/json.", 415),
